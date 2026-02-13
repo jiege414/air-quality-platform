@@ -381,15 +381,267 @@ npm ERR! command failed: node bin/install.js
 | POST | `/api/warning/predict` | - | 运行预测 |
 | POST | `/api/warning/handle/{warningId}` | - | 处理预警 |
 
-## 后续使用和维护
+## 日常启动指南（已配置环境后）
 
-### 日常启动步骤
-1. 确保 MySQL 服务正在运行
-2. 启动后端：`cd backend && .\mvnw.cmd spring-boot:run`
-3. 启动前端：`cd frontend && npm run serve`
-4. 访问 http://localhost:3000
+当你已经完成首次环境配置后，日常使用只需以下步骤：
 
-### 数据更新
+### 1. 启动 MySQL 服务（如未开机自启）
+
+**Windows PowerShell：**
+```powershell
+# 检查 MySQL 服务状态
+Get-Service MySQL80
+
+# 启动服务（如果未运行）
+Start-Service MySQL80
+
+# 停止服务
+Stop-Service MySQL80
+```
+
+**验证 MySQL 连接：**
+```powershell
+mysql -u root -p123456
+```
+
+### 2. 启动后端服务（SpringBoot）
+
+**方式一：使用 Maven Wrapper（推荐）**
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
+**方式二：使用已安装的 Maven**
+```powershell
+cd backend
+mvn spring-boot:run
+```
+
+**预期输出：**
+```
+Tomcat started on port(s): 8080 (http)
+Started AirQualityApplication in x.x seconds
+```
+
+**后端访问地址：**
+- 首页：http://localhost:8080
+- API 测试：http://localhost:8080/api/city/list
+
+### 3. 启动前端服务（Vue.js）
+
+```powershell
+cd frontend
+npm run serve
+```
+
+**预期输出：**
+```
+DONE  Compiled successfully in xxxxms
+
+App running at:
+- Local:   http://localhost:3000/
+- Network: unavailable
+```
+
+**前端访问地址：** http://localhost:3000
+
+### 4. 启动 Python 爬虫（可选）
+
+如果你需要获取实时空气质量数据：
+
+```powershell
+# 进入项目根目录，激活虚拟环境
+.\venv\Scripts\activate
+
+# 进入爬虫目录
+cd spider
+
+# 运行爬虫调度器（自动定时爬取）
+python scheduler.py
+
+# 或运行一次性爬虫
+python air_quality_spider.py
+```
+
+---
+
+## 服务访问汇总
+
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| 前端页面 | http://localhost:3000/ | 数据可视化界面 |
+| 后端 API | http://localhost:8080/ | RESTful API 服务 |
+| 城市列表 API | http://localhost:8080/api/city/list | 获取所有城市 |
+| MySQL | localhost:3306 | 数据库服务 |
+
+---
+
+## 快速验证项目运行状态
+
+### 验证后端服务
+在浏览器中访问：http://localhost:8080/api/city/list
+
+**预期返回：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {"cityCode": "110000", "cityName": "北京", "province": "北京市"},
+    {"cityCode": "310000", "cityName": "上海", "province": "上海市"},
+    ...
+  ]
+}
+```
+
+### 验证前端页面
+在浏览器中访问：http://localhost:3000
+
+**预期看到：**
+- 顶部导航栏（数据概览、城市排名、历史查询、数据对比、预警信息）
+- 数据概览页面，包含统计卡片和图表
+
+---
+
+## 停止服务
+
+### 停止前端服务
+在运行前端服务的终端中按 `Ctrl + C`，然后输入 `Y` 确认。
+
+### 停止后端服务
+在运行后端服务的终端中按 `Ctrl + C`。
+
+### 停止 Python 爬虫
+在运行爬虫的终端中按 `Ctrl + C`。
+
+---
+
+## 常见问题快速解决
+
+### 问题 1：端口被占用
+
+**错误信息：**
+```
+Port 8080 was already in use
+```
+
+**解决方案：**
+```powershell
+# 查找占用 8080 端口的进程
+netstat -ano | findstr :8080
+
+# 结束进程（将 <PID> 替换为实际进程 ID）
+taskkill /PID <PID> /F
+```
+
+### 问题 2：后端无法连接数据库
+
+**错误信息：**
+```
+Communications link failure
+```
+
+**解决方案：**
+1. 确认 MySQL 服务已启动
+2. 检查 `backend/src/main/resources/application.yml` 中的数据库密码是否正确
+3. 确认数据库 `air_quality` 已创建
+
+### 问题 3：前端无法连接后端
+
+**错误信息：**
+```
+Proxy error: Could not proxy request
+```
+
+**解决方案：**
+1. 确认后端服务已启动（http://localhost:8080 可访问）
+2. 检查 `frontend/vue.config.js` 中的代理配置
+3. 尝试直接访问后端 API 测试
+
+### 问题 4：Python 爬虫依赖缺失
+
+**错误信息：**
+```
+ModuleNotFoundError: No module named 'requests'
+```
+
+**解决方案：**
+```powershell
+# 激活虚拟环境
+.\venv\Scripts\activate
+
+# 重新安装依赖
+pip install -r spider/requirements.txt
+```
+
+---
+
+## 数据更新和维护
+
+### 自动数据更新
+爬虫调度器已配置定时任务：
+- **每 2 小时**：获取实时空气质量数据
+- **每天 02:00**：获取历史数据
+- **每天 06:00**：运行 ARIMA 预测并生成预警
+
+### 手动数据更新
+```powershell
+# 激活虚拟环境
+.\venv\Scripts\activate
+
+cd spider
+
+# 手动运行爬虫
+python air_quality_spider.py
+
+# 手动运行预测
+python prediction.py
+```
+
+### 查看数据库数据
+```sql
+-- 查看城市列表
+SELECT * FROM city;
+
+-- 查看实时数据
+SELECT * FROM air_quality_realtime ORDER BY aqi DESC;
+
+-- 查看历史数据（最近7天）
+SELECT * FROM air_quality 
+WHERE date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+ORDER BY date DESC, aqi DESC;
+
+-- 查看预警记录
+SELECT * FROM warning_record WHERE is_handled = 0;
+```
+
+---
+
+## 生产环境部署
+
+### 后端打包部署
+```powershell
+cd backend
+
+# 打包
+mvn clean package
+
+# 运行打包后的 jar 包
+java -jar target/air-quality-platform-1.0.0.jar
+```
+
+### 前端打包部署
+```powershell
+cd frontend
+
+# 打包（生成 dist 目录）
+npm run build
+
+# 将 dist 目录部署到 Nginx 或 Apache
+```
+
+### 注意事项
 - 爬虫每小时自动采集最新数据
 - 手动运行爬虫：`python spider/air_quality_spider.py`
 - 手动运行预测：`python spider/prediction.py`
