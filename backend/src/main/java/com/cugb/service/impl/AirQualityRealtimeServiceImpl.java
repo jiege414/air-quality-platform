@@ -19,14 +19,13 @@ public class AirQualityRealtimeServiceImpl extends ServiceImpl<AirQualityRealtim
         Map<String, Object> result = new HashMap<>();
         List<AirQualityRealtime> list;
         
-        if ("worst".equals(type)) {
-            list = baseMapper.selectTop10ByAqiDesc();
-        } else {
-            list = baseMapper.selectTop10ByAqiAsc();
-        }
+        // 默认限制为10，如果传入了limit则使用传入的值
+        int queryLimit = (limit != null && limit > 0) ? limit : 10;
         
-        if (limit != null && limit > 0 && list.size() > limit) {
-            list = list.subList(0, limit);
+        if ("worst".equals(type)) {
+            list = baseMapper.selectTop10ByAqiDesc(queryLimit);
+        } else {
+            list = baseMapper.selectTop10ByAqiAsc(queryLimit);
         }
         
         List<String> cityNames = new ArrayList<>();
