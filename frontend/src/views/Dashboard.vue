@@ -81,10 +81,10 @@ export default {
   data() {
     return {
       statistics: {
-        totalCities: 20,
-        avgAqi: 85,
-        warningCount: 3,
-        worstCity: '北京'
+        totalCities: '-',
+        avgAqi: '-',
+        warningCount: '-',
+        worstCity: '-'
       },
       worstRankingChart: null,
       bestRankingChart: null,
@@ -115,10 +115,16 @@ export default {
     },
     async fetchWorstRanking() {
       try {
+        console.log('正在获取最差排名数据...')
         const response = await this.$axios.get('/air-quality-realtime/ranking?type=worst&limit=10')
+        console.log('最差排名API响应:', response.data)
         if (response.data.code === 200) {
           const data = response.data.data
+          console.log('最差排名数据:', data)
           this.renderRankingChart(this.worstRankingChart, data, 'worst')
+        } else {
+          console.error('API返回错误:', response.data.message)
+          this.renderMockRankingChart(this.worstRankingChart, 'worst')
         }
       } catch (error) {
         console.error('获取最差排名失败:', error)
@@ -127,10 +133,16 @@ export default {
     },
     async fetchBestRanking() {
       try {
+        console.log('正在获取最优排名数据...')
         const response = await this.$axios.get('/air-quality-realtime/ranking?type=best&limit=10')
+        console.log('最优排名API响应:', response.data)
         if (response.data.code === 200) {
           const data = response.data.data
+          console.log('最优排名数据:', data)
           this.renderRankingChart(this.bestRankingChart, data, 'best')
+        } else {
+          console.error('API返回错误:', response.data.message)
+          this.renderMockRankingChart(this.bestRankingChart, 'best')
         }
       } catch (error) {
         console.error('获取最优排名失败:', error)
@@ -139,10 +151,15 @@ export default {
     },
     async fetchRealtimeData() {
       try {
+        console.log('正在获取实时数据...')
         const response = await this.$axios.get('/air-quality-realtime/list')
+        console.log('实时数据API响应:', response.data)
         if (response.data.code === 200) {
           const data = response.data.data
+          console.log('实时数据:', data)
           this.updateStatistics(data)
+        } else {
+          console.error('API返回错误:', response.data.message)
         }
       } catch (error) {
         console.error('获取实时数据失败:', error)
