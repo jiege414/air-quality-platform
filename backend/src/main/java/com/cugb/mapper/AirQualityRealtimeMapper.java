@@ -15,4 +15,7 @@ public interface AirQualityRealtimeMapper extends BaseMapper<AirQualityRealtime>
     
     @Select("SELECT * FROM air_quality_realtime ORDER BY aqi ASC LIMIT 10")
     List<AirQualityRealtime> selectTop10ByAqiAsc();
+    
+    @Select("SELECT DISTINCT city_name FROM air_quality_realtime ORDER BY city_name")
+    List<String> selectAllCityNames();
 }
