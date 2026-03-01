@@ -10,9 +10,9 @@ import java.util.List;
 @Mapper
 public interface AirQualityRealtimeMapper extends BaseMapper<AirQualityRealtime> {
     
-    @Select("SELECT * FROM air_quality_realtime ORDER BY aqi DESC LIMIT 10")
-    List<AirQualityRealtime> selectTop10ByAqiDesc();
+    @Select("SELECT * FROM air_quality_realtime ORDER BY aqi DESC LIMIT #{limit}")
+    List<AirQualityRealtime> selectTopByAqiDesc(Integer limit);
     
-    @Select("SELECT * FROM air_quality_realtime ORDER BY aqi ASC LIMIT 10")
-    List<AirQualityRealtime> selectTop10ByAqiAsc();
+    @Select("SELECT * FROM air_quality_realtime ORDER BY aqi ASC LIMIT #{limit}")
+    List<AirQualityRealtime> selectTopByAqiAsc(Integer limit);
 }
