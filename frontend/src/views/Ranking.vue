@@ -2,71 +2,96 @@
   <div class="ranking">
     <h2 class="page-title">全国城市AQI排行榜</h2>
     
-    <div class="card-container">
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <div class="ranking-section">
-            <div class="section-header">
-              <h3>
-                <i class="el-icon-s-flag" style="color: #F56C6C;"></i>
-                空气质量最差城市 TOP10
-              </h3>
-            </div>
-            <div ref="worstChart" style="height: 500px;"></div>
+    <!-- 图表区域 -->
+    <el-row :gutter="20">
+      <el-col :span="12">
+        <div class="chart-card">
+          <div class="chart-header" style="background: linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%);">
+            <i class="el-icon-s-flag"></i>
+            <span>空气质量最差城市 TOP10</span>
           </div>
-        </el-col>
-        <el-col :span="12">
-          <div class="ranking-section">
-            <div class="section-header">
-              <h3>
-                <i class="el-icon-s-claim" style="color: #67C23A;"></i>
-                空气质量最优城市 TOP10
-              </h3>
-            </div>
-            <div ref="bestChart" style="height: 500px;"></div>
+          <div class="chart-body">
+            <div ref="worstChart" style="height: 400px;"></div>
           </div>
-        </el-col>
-      </el-row>
-    </div>
+        </div>
+      </el-col>
+      <el-col :span="12">
+        <div class="chart-card">
+          <div class="chart-header" style="background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);">
+            <i class="el-icon-s-claim"></i>
+            <span>空气质量最优城市 TOP10</span>
+          </div>
+          <div class="chart-body">
+            <div ref="bestChart" style="height: 400px;"></div>
+          </div>
+        </div>
+      </el-col>
+    </el-row>
 
-    <div class="card-container" style="margin-top: 20px;">
+    <!-- 详细排名表格 -->
+    <div class="table-card">
       <div class="table-header">
-        <h3>详细排名数据</h3>
-        <el-radio-group v-model="rankingType" size="small" @change="handleTypeChange">
-          <el-radio-button label="worst">最差排名</el-radio-button>
-          <el-radio-button label="best">最优排名</el-radio-button>
-        </el-radio-group>
+        <div class="header-left">
+          <i class="el-icon-s-data"></i>
+          <span>详细排名数据</span>
+        </div>
+        <div class="header-right">
+          <el-radio-group v-model="rankingType" size="small" @change="handleTypeChange">
+            <el-radio-button label="worst">最差排名</el-radio-button>
+            <el-radio-button label="best">最优排名</el-radio-button>
+          </el-radio-group>
+        </div>
       </div>
-      <el-table :data="tableData" stripe style="width: 100%">
-        <el-table-column type="index" label="排名" width="80" align="center">
-          <template slot-scope="scope">
-            <span :class="getRankClass(scope.$index)">{{ scope.$index + 1 }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="cityName" label="城市" align="center"></el-table-column>
-        <el-table-column prop="aqi" label="AQI" align="center">
-          <template slot-scope="scope">
-            <el-tag :type="getAqiType(scope.row.aqi)" size="medium">
-              {{ scope.row.aqi }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="quality" label="空气质量" align="center">
-          <template slot-scope="scope">
-            <span :style="{ color: getQualityColor(scope.row.quality) }">{{ scope.row.quality }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="pm25" label="PM2.5" align="center">
-          <template slot-scope="scope">
-            {{ scope.row.pm25 }} μg/m³
-          </template>
-        </el-table-column>
-        <el-table-column prop="pm10" label="PM10" align="center">
-          <template slot-scope="scope">
-            {{ scope.row.pm10 }} μg/m³
-          </template>
-        </el-table-column>
-      </el-table>
+      <div class="table-body">
+        <el-table 
+          :data="paginatedTableData" 
+          stripe 
+          style="width: 100%"
+          :header-cell-style="{ background: '#f5f7fa', color: '#606266', fontWeight: '500' }">
+          <el-table-column label="排名" align="center">
+            <template slot-scope="scope">
+              <div :class="['rank-badge', getRankBadgeClass((currentPage - 1) * pageSize + scope.$index)]">
+                {{ (currentPage - 1) * pageSize + scope.$index + 1 }}
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="cityName" label="城市" align="center"></el-table-column>
+          <el-table-column label="AQI" align="center">
+            <template slot-scope="scope">
+              <span :style="{ color: getAqiColor(scope.row.aqi), fontWeight: '500' }">{{ scope.row.aqi }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="quality" label="空气质量" align="center">
+            <template slot-scope="scope">
+              <span :style="{ color: getQualityColor(scope.row.quality) }">{{ scope.row.quality }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="PM2.5" align="center">
+            <template slot-scope="scope">
+              {{ scope.row.pm25 }} <span style="color: #909399; font-size: 12px;">μg/m³</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="PM10" align="center">
+            <template slot-scope="scope">
+              {{ scope.row.pm10 }} <span style="color: #909399; font-size: 12px;">μg/m³</span>
+            </template>
+          </el-table-column>
+        </el-table>
+        
+        <!-- 分页 -->
+        <div class="pagination-wrapper">
+          <el-pagination
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+            :current-page="currentPage"
+            :page-sizes="[10, 20, 50, 100]"
+            :page-size="pageSize"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="tableData.length"
+            background>
+          </el-pagination>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -80,8 +105,19 @@ export default {
       worstData: [],
       bestData: [],
       tableData: [],
+      allWorstData: [],
+      allBestData: [],
       worstChart: null,
-      bestChart: null
+      bestChart: null,
+      currentPage: 1,
+      pageSize: 10
+    }
+  },
+  computed: {
+    paginatedTableData() {
+      const start = (this.currentPage - 1) * this.pageSize
+      const end = start + this.pageSize
+      return this.tableData.slice(start, end)
     }
   },
   mounted() {
@@ -109,16 +145,27 @@ export default {
         if (response.data.code === 200) {
           this.worstData = this.formatData(response.data.data)
           this.renderChart(this.worstChart, this.worstData, 'worst')
-          if (this.rankingType === 'worst') {
-            this.tableData = this.worstData
-          }
         }
       } catch (error) {
         console.error('获取最差排名失败:', error)
         this.worstData = this.getMockData('worst')
         this.renderChart(this.worstChart, this.worstData, 'worst')
+      }
+      
+      // 获取全量数据用于表格分页
+      try {
+        const response = await this.$axios.get('/air-quality-realtime/ranking?type=worst&limit=1000')
+        if (response.data.code === 200) {
+          this.allWorstData = this.formatData(response.data.data)
+          if (this.rankingType === 'worst') {
+            this.tableData = this.allWorstData
+          }
+        }
+      } catch (error) {
+        console.error('获取最差排名全量数据失败:', error)
+        this.allWorstData = this.getMockData('worst')
         if (this.rankingType === 'worst') {
-          this.tableData = this.worstData
+          this.tableData = this.allWorstData
         }
       }
     },
@@ -128,16 +175,27 @@ export default {
         if (response.data.code === 200) {
           this.bestData = this.formatData(response.data.data)
           this.renderChart(this.bestChart, this.bestData, 'best')
-          if (this.rankingType === 'best') {
-            this.tableData = this.bestData
-          }
         }
       } catch (error) {
         console.error('获取最优排名失败:', error)
         this.bestData = this.getMockData('best')
         this.renderChart(this.bestChart, this.bestData, 'best')
+      }
+      
+      // 获取全量数据用于表格分页
+      try {
+        const response = await this.$axios.get('/air-quality-realtime/ranking?type=best&limit=1000')
+        if (response.data.code === 200) {
+          this.allBestData = this.formatData(response.data.data)
+          if (this.rankingType === 'best') {
+            this.tableData = this.allBestData
+          }
+        }
+      } catch (error) {
+        console.error('获取最优排名全量数据失败:', error)
+        this.allBestData = this.getMockData('best')
         if (this.rankingType === 'best') {
-          this.tableData = this.bestData
+          this.tableData = this.allBestData
         }
       }
     },
@@ -156,8 +214,8 @@ export default {
     },
     getMockData(type) {
       const mockData = type === 'worst' 
-        ? { cityNames: ['北京', '天津', '石家庄', '郑州', '济南', '西安', '沈阳', '太原', '乌鲁木齐', '兰州'], aqiValues: [180, 165, 158, 145, 138, 132, 128, 125, 122, 118], qualityList: ['中度污染', '中度污染', '中度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染'] }
-        : { cityNames: ['三亚', '海口', '拉萨', '深圳', '珠海', '厦门', '昆明', '福州', '广州', '贵阳'], aqiValues: [25, 32, 38, 42, 45, 48, 52, 55, 58, 62], qualityList: ['优', '优', '优', '优', '优', '优', '良', '良', '良', '良'] }
+        ? { cityNames: ['北京', '天津', '石家庄', '郑州', '济南', '西安', '沈阳', '太原', '乌鲁木齐', '兰州', '成都', '武汉', '长沙', '合肥', '南京', '杭州', '上海', '广州', '深圳', '重庆'], aqiValues: [180, 165, 158, 145, 138, 132, 128, 125, 122, 118, 115, 112, 108, 105, 102, 98, 95, 92, 88, 85], qualityList: ['中度污染', '中度污染', '中度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '轻度污染', '良', '良', '良', '良', '良'] }
+        : { cityNames: ['三亚', '海口', '拉萨', '深圳', '珠海', '厦门', '昆明', '福州', '广州', '贵阳', '南宁', '南昌', '长春', '哈尔滨', '呼和浩特', '乌鲁木齐', '银川', '西宁', '兰州', '西安'], aqiValues: [25, 32, 38, 42, 45, 48, 52, 55, 58, 62, 65, 68, 72, 75, 78, 82, 85, 88, 92, 95], qualityList: ['优', '优', '优', '优', '优', '优', '良', '良', '良', '良', '良', '良', '良', '良', '良', '良', '良', '良', '良', '良'] }
       return this.formatData(mockData)
     },
     renderChart(chart, data, type) {
@@ -168,49 +226,76 @@ export default {
         tooltip: {
           trigger: 'axis',
           axisPointer: { type: 'shadow' },
-          formatter: function(params) {
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          borderColor: '#ddd',
+          borderWidth: 1,
+          textStyle: { color: '#333' },
+          formatter: (params) => {
             const dataIndex = params[0].dataIndex
             const item = data[dataIndex]
-            return `${item.cityName}<br/>AQI: ${item.aqi}<br/>空气质量: ${item.quality}`
+            return `
+              <div style="padding: 10px;">
+                <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">${item.cityName}</div>
+                <div style="color: ${type === 'worst' ? '#ff6b6b' : '#67c23a'}; font-size: 16px; font-weight: bold;">AQI: ${item.aqi}</div>
+                <div style="color: #666; margin-top: 5px; font-size: 12px;">空气质量: ${item.quality}</div>
+              </div>
+            `
           }
         },
         grid: {
           left: '3%',
           right: '8%',
           bottom: '3%',
+          top: '5%',
           containLabel: true
         },
         xAxis: {
           type: 'value',
           name: 'AQI指数',
           nameLocation: 'end',
+          nameTextStyle: {
+            color: '#909399',
+            fontSize: 11
+          },
           splitLine: {
-            lineStyle: { type: 'dashed' }
+            lineStyle: { 
+              type: 'dashed',
+              color: '#ebeef5'
+            }
+          },
+          axisLabel: {
+            color: '#909399',
+            fontSize: 11
           }
         },
         yAxis: {
           type: 'category',
           data: cityNames.slice().reverse(),
           axisLabel: {
-            fontSize: 13,
-            fontWeight: 'bold'
+            fontSize: 12,
+            color: '#606266'
           },
-          axisTick: { show: false }
+          axisTick: { show: false },
+          axisLine: {
+            lineStyle: {
+              color: '#ebeef5'
+            }
+          }
         },
         series: [{
           name: 'AQI',
           type: 'bar',
           data: aqiValues.slice().reverse(),
-          barWidth: '60%',
+          barWidth: '50%',
           itemStyle: {
             color: type === 'worst' 
               ? new this.$echarts.graphic.LinearGradient(0, 0, 1, 0, [
-                  { offset: 0, color: '#F56C6C' },
-                  { offset: 1, color: '#FF9999' }
+                  { offset: 0, color: '#ff9a9a' },
+                  { offset: 1, color: '#ff6b6b' }
                 ])
               : new this.$echarts.graphic.LinearGradient(0, 0, 1, 0, [
-                  { offset: 0, color: '#67C23A' },
-                  { offset: 1, color: '#95D475' }
+                  { offset: 0, color: '#95d475' },
+                  { offset: 1, color: '#67c23a' }
                 ]),
             borderRadius: [0, 4, 4, 0]
           },
@@ -218,37 +303,45 @@ export default {
             show: true,
             position: 'right',
             formatter: '{c}',
-            fontSize: 12,
-            fontWeight: 'bold'
+            fontSize: 11,
+            color: '#606266'
           }
         }]
       }
       chart.setOption(option)
     },
     handleTypeChange(val) {
-      this.tableData = val === 'worst' ? this.worstData : this.bestData
+      this.currentPage = 1
+      this.tableData = val === 'worst' ? this.allWorstData : this.allBestData
     },
-    getRankClass(index) {
-      if (index === 0) return 'rank-first'
-      if (index === 1) return 'rank-second'
-      if (index === 2) return 'rank-third'
+    handleSizeChange(val) {
+      this.pageSize = val
+      this.currentPage = 1
+    },
+    handleCurrentChange(val) {
+      this.currentPage = val
+    },
+    getRankBadgeClass(index) {
+      if (index === 0) return 'rank-1'
+      if (index === 1) return 'rank-2'
+      if (index === 2) return 'rank-3'
       return 'rank-normal'
     },
-    getAqiType(aqi) {
-      if (aqi <= 50) return 'success'
-      if (aqi <= 100) return ''
-      if (aqi <= 150) return 'warning'
-      if (aqi <= 200) return 'danger'
-      return 'danger'
+    getAqiColor(aqi) {
+      if (aqi <= 50) return '#67c23a'
+      if (aqi <= 100) return '#e6a23c'
+      if (aqi <= 150) return '#f56c6c'
+      if (aqi <= 200) return '#c45656'
+      return '#8b0000'
     },
     getQualityColor(quality) {
       const colorMap = {
-        '优': '#67C23A',
-        '良': '#909399',
-        '轻度污染': '#E6A23C',
-        '中度污染': '#F56C6C',
-        '重度污染': '#C45656',
-        '严重污染': '#8B0000'
+        '优': '#67c23a',
+        '良': '#e6a23c',
+        '轻度污染': '#f56c6c',
+        '中度污染': '#c45656',
+        '重度污染': '#8b0000',
+        '严重污染': '#4d0000'
       }
       return colorMap[quality] || '#909399'
     },
@@ -261,79 +354,122 @@ export default {
 </script>
 
 <style scoped>
-.ranking-section {
-  background: #f5f7fa;
-  border-radius: 4px;
-  padding: 15px;
-}
-
-.section-header {
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e4e7ed;
-}
-
-.section-header h3 {
-  margin: 0;
-  font-size: 16px;
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
   color: #303133;
+  margin-bottom: 20px;
+  padding-left: 10px;
+  border-left: 4px solid #409eff;
 }
 
-.section-header i {
+.chart-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.chart-header {
+  padding: 12px 16px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+.chart-header i {
   margin-right: 8px;
+  font-size: 16px;
+}
+
+.chart-body {
+  padding: 16px;
+}
+
+.table-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+  overflow: hidden;
 }
 
 .table-header {
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+  padding: 12px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  color: #fff;
 }
 
-.table-header h3 {
-  margin: 0;
+.header-left {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.header-left i {
+  margin-right: 8px;
   font-size: 16px;
-  color: #303133;
 }
 
-.rank-first {
-  display: inline-block;
+.header-right >>> .el-radio-button__inner {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #606266;
+}
+
+.header-right >>> .el-radio-button__orig-radio:checked + .el-radio-button__inner {
+  background: #fff;
+  border-color: #fff;
+  color: #409eff;
+  box-shadow: -1px 0 0 0 #fff;
+}
+
+.table-body {
+  padding: 16px;
+}
+
+.rank-badge {
   width: 24px;
   height: 24px;
   line-height: 24px;
-  text-align: center;
-  background: #F56C6C;
-  color: #fff;
   border-radius: 50%;
-  font-weight: bold;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 0 auto;
 }
 
-.rank-second {
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  line-height: 24px;
-  text-align: center;
-  background: #E6A23C;
+.rank-1 {
+  background: #ff6b6b;
   color: #fff;
-  border-radius: 50%;
-  font-weight: bold;
 }
 
-.rank-third {
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  line-height: 24px;
-  text-align: center;
-  background: #409EFF;
+.rank-2 {
+  background: #ffa94d;
   color: #fff;
-  border-radius: 50%;
-  font-weight: bold;
+}
+
+.rank-3 {
+  background: #4dabf7;
+  color: #fff;
 }
 
 .rank-normal {
-  color: #606266;
-  font-weight: bold;
+  background: #e9ecef;
+  color: #868e96;
+}
+
+.pagination-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #ebeef5;
 }
 </style>
