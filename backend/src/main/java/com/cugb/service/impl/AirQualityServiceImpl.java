@@ -7,10 +7,12 @@ import com.cugb.service.AirQualityService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class AirQualityServiceImpl extends ServiceImpl<AirQualityMapper, AirQuality> implements AirQualityService {
@@ -18,6 +20,65 @@ public class AirQualityServiceImpl extends ServiceImpl<AirQualityMapper, AirQual
     @Override
     public List<AirQuality> getHistoryData(String cityCode, LocalDate startDate, LocalDate endDate) {
         return baseMapper.selectByCityAndDateRange(cityCode, startDate, endDate);
+    }
+    
+    @Override
+    public List<Map<String, Object>> getHistoryDataWithMissingDates(String cityCode, LocalDate startDate, LocalDate endDate) {
+        // 1. 获取实际存在的数据
+        List<AirQuality> existingData = baseMapper.selectByCityAndDateRange(cityCode, startDate, endDate);
+        
+        // 2. 将实际数据转换为 Map，key 为日期字符串
+        Map<String, AirQuality> dataMap = existingData.stream()
+            .collect(Collectors.toMap(
+                aq -> aq.getDate().toString(),
+                aq -> aq,
+                (existing, replacement) -> existing
+            ));
+        
+        // 3. 生成日期范围内的所有日期
+        List<Map<String, Object>> result = new ArrayList<>();
+        long daysBetween = ChronoUnit.DAYS.between(startDate, endDate);
+        
+        for (int i = 0; i <= daysBetween; i++) {
+            LocalDate currentDate = startDate.plusDays(i);
+            String dateStr = currentDate.toString();
+            
+            Map<String, Object> dayData = new HashMap<>();
+            dayData.put("date", dateStr);
+            
+            AirQuality aq = dataMap.get(dateStr);
+            if (aq != null) {
+                // 有数据
+                dayData.put("hasData", true);
+                dayData.put("aqi", aq.getAqi());
+                dayData.put("quality", aq.getQuality());
+                dayData.put("pm25", aq.getPm25());
+                dayData.put("pm10", aq.getPm10());
+                dayData.put("so2", aq.getSo2());
+                dayData.put("no2", aq.getNo2());
+                dayData.put("co", aq.getCo());
+                dayData.put("o3", aq.getO3());
+                dayData.put("cityName", aq.getCityName());
+                dayData.put("cityCode", aq.getCityCode());
+            } else {
+                // 无数据，标记为缺失
+                dayData.put("hasData", false);
+                dayData.put("aqi", null);
+                dayData.put("quality", null);
+                dayData.put("pm25", null);
+                dayData.put("pm10", null);
+                dayData.put("so2", null);
+                dayData.put("no2", null);
+                dayData.put("co", null);
+                dayData.put("o3", null);
+                dayData.put("cityName", null);
+                dayData.put("cityCode", cityCode);
+            }
+            
+            result.add(dayData);
+        }
+        
+        return result;
     }
     
     @Override
