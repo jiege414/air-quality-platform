@@ -41,7 +41,7 @@
         <router-view />
       </el-main>
       <el-footer class="footer">
-        <p>空气质量数据可视化分析平台 © 2024 中国地质大学（北京）</p>
+        <p>空气质量数据可视化分析平台 © 2026 中国地质大学（北京）</p>
       </el-footer>
     </el-container>
   </div>

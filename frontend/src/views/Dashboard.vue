@@ -4,7 +4,7 @@
     
     <el-row :gutter="20">
       <el-col :span="6">
-        <div class="stat-card">
+        <div class="stat-card clickable" @click="goToRanking">
           <div class="stat-icon" style="background: #67C23A;">
             <i class="el-icon-s-data"></i>
           </div>
@@ -15,7 +15,7 @@
         </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card">
+        <div class="stat-card clickable" @click="goToRanking">
           <div class="stat-icon" style="background: #409EFF;">
             <i class="el-icon-s-marketing"></i>
           </div>
@@ -26,7 +26,7 @@
         </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card">
+        <div class="stat-card clickable" @click="goToWarning">
           <div class="stat-icon" style="background: #E6A23C;">
             <i class="el-icon-warning"></i>
           </div>
@@ -37,7 +37,7 @@
         </div>
       </el-col>
       <el-col :span="6">
-        <div class="stat-card">
+        <div class="stat-card clickable" @click="showWorstCityDetail">
           <div class="stat-icon" style="background: #F56C6C;">
             <i class="el-icon-s-flag"></i>
           </div>
@@ -216,6 +216,23 @@ export default {
         }
       })
     },
+    // 跳转到城市排名页面
+    goToRanking() {
+      this.$router.push('/ranking')
+    },
+    // 跳转到预警信息页面
+    goToWarning() {
+      this.$router.push('/warning')
+    },
+    // 显示污染最严重城市的详情（点击重点城市监测列表第一个城市）
+    showWorstCityDetail() {
+      if (this.displayedCities && this.displayedCities.length > 0) {
+        // 点击重点城市监测列表排第一的城市
+        this.focusCity(this.displayedCities[0])
+      } else {
+        this.$message.warning('暂无城市数据')
+      }
+    },
     async fetchData() {
       await this.fetchRealtimeData()
     },
@@ -391,6 +408,10 @@ export default {
           roam: true,
           zoom: 1.15,
           center: [105, 36],
+          scaleLimit: {
+            min: 0.8,
+            max: 8
+          },
           label: {
             show: false
           },
@@ -594,6 +615,14 @@ export default {
 
 .stat-card:hover {
   transform: translateY(-2px);
+}
+
+.stat-card.clickable {
+  cursor: pointer;
+}
+
+.stat-card.clickable:hover {
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.15);
 }
 
 /* 地图容器样式 */

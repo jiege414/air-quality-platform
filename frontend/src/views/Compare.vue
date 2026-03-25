@@ -8,9 +8,16 @@
           <el-select
             v-model="queryForm.cityCodes"
             multiple
-            collapse-tags
-            placeholder="请选择要对比的城市（至少2个）"
-            style="width: 350px;"
+            :collapse-tags="false"
+            filterable
+            remote
+            reserve-keyword
+            placeholder="请输入城市名搜索（至少选择2个）"
+            :remote-method="searchCities"
+            :loading="cityLoading"
+            @change="handleCityChange"
+            style="width: 450px;"
+            ref="citySelect"
           >
             <el-option
               v-for="city in cities"
@@ -20,15 +27,24 @@
             ></el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="时间范围">
+        <el-form-item label="开始日期">
           <el-date-picker
-            v-model="queryForm.dateRange"
-            type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
+            v-model="queryForm.startDate"
+            type="date"
+            placeholder="选择开始日期"
             value-format="yyyy-MM-dd"
-            :picker-options="pickerOptions"
+            :picker-options="startPickerOptions"
+            :default-value="defaultPickerDate"
+          ></el-date-picker>
+        </el-form-item>
+        <el-form-item label="结束日期">
+          <el-date-picker
+            v-model="queryForm.endDate"
+            type="date"
+            placeholder="选择结束日期"
+            value-format="yyyy-MM-dd"
+            :picker-options="endPickerOptions"
+            :default-value="defaultPickerDate"
           ></el-date-picker>
         </el-form-item>
         <el-form-item>
@@ -36,6 +52,12 @@
           <el-button @click="handleReset" icon="el-icon-refresh">重置</el-button>
         </el-form-item>
       </el-form>
+    </div>
+
+    <!-- 数据缺失提示 -->
+    <div v-if="missingDataCount > 0" class="card-container warning-tip">
+      <i class="el-icon-warning"></i>
+      <span>提示：查询范围内有 {{ missingDataCount }} 天数据缺失</span>
     </div>
 
     <div v-if="chartData.length > 0">
@@ -90,6 +112,12 @@
       <i class="el-icon-warning-outline"></i>
       <p>暂无对比数据，请选择至少2个城市进行查询</p>
     </div>
+
+    <!-- 数据说明 -->
+    <div class="data-note">
+      <i class="el-icon-info"></i>
+      <span>数据说明：本系统采用每天凌晨 2:00 的监测数据作为当日空气质量代表值</span>
+    </div>
   </div>
 </template>
 
@@ -100,36 +128,89 @@ export default {
     return {
       queryForm: {
         cityCodes: [],
-        dateRange: []
+        startDate: '',
+        endDate: ''
       },
       cities: [],
+      selectedCitiesMap: {}, // 存储所有已选择的城市信息
+      cityLoading: false,
       chartData: [],
       tableData: [],
       statistics: [],
       selectedCities: [],
       hasQueried: false,
+      missingDataCount: 0,
       compareChart: null,
-      pickerOptions: {
-        shortcuts: [
-          {
-            text: '最近一周',
-            onClick(picker) {
-              const end = new Date()
-              const start = new Date()
-              start.setTime(start.getTime() - 3600 * 1000 * 24 * 7)
-              picker.$emit('pick', [start, end])
-            }
-          },
-          {
-            text: '最近一个月',
-            onClick(picker) {
-              const end = new Date()
-              const start = new Date()
-              start.setTime(start.getTime() - 3600 * 1000 * 24 * 30)
-              picker.$emit('pick', [start, end])
-            }
+      // 日期选择器默认显示2026年3月
+      defaultPickerDate: new Date(2026, 2, 1),
+      // 开始日期选择器配置
+      startPickerOptions: {
+        disabledDate: (time) => {
+          const year = time.getFullYear()
+          const month = time.getMonth()
+          const date = time.getDate()
+
+          // 限制年份必须在 2026-2027 之间
+          if (year < 2026 || year > 2027) {
+            return true
           }
-        ]
+
+          // 2026年2月13日之前不可选
+          if (year === 2026 && (month < 1 || (month === 1 && date < 13))) {
+            return true
+          }
+
+          // 2027年12月31日之后不可选
+          if (year === 2027 && (month > 11 || (month === 11 && date > 31))) {
+            return true
+          }
+
+          // 不能晚于结束日期
+          if (this.queryForm.endDate) {
+            const endDate = new Date(this.queryForm.endDate)
+            return time.getTime() > endDate.getTime()
+          }
+
+          return false
+        }
+      },
+      // 结束日期选择器配置
+      endPickerOptions: {
+        disabledDate: (time) => {
+          const year = time.getFullYear()
+          const month = time.getMonth()
+          const date = time.getDate()
+
+          // 限制年份必须在 2026-2027 之间
+          if (year < 2026 || year > 2027) {
+            return true
+          }
+
+          // 2026年2月13日之前不可选
+          if (year === 2026 && (month < 1 || (month === 1 && date < 13))) {
+            return true
+          }
+
+          // 2027年12月31日之后不可选
+          if (year === 2027 && (month > 11 || (month === 11 && date > 31))) {
+            return true
+          }
+
+          // 不能晚于今天
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          if (time.getTime() > today.getTime()) {
+            return true
+          }
+
+          // 不能早于开始日期
+          if (this.queryForm.startDate) {
+            const startDate = new Date(this.queryForm.startDate)
+            return time.getTime() < startDate.getTime()
+          }
+
+          return false
+        }
       }
     }
   },
@@ -147,11 +228,17 @@ export default {
     if (this.compareChart) this.compareChart.dispose()
   },
   methods: {
+    // 获取城市列表（初始加载）
     async fetchCities() {
       try {
-        const response = await this.$axios.get('/city/list')
+        const response = await this.$axios.get('/city/page', {
+          params: {
+            page: 1,
+            size: 20
+          }
+        })
         if (response.data.code === 200) {
-          this.cities = response.data.data
+          this.cities = response.data.data.records
         }
       } catch (error) {
         console.error('获取城市列表失败:', error)
@@ -165,28 +252,69 @@ export default {
         ]
       }
     },
+    // 搜索城市（支持模糊搜索）
+    async searchCities(query) {
+      this.cityLoading = true
+      try {
+        const response = await this.$axios.get('/city/page', {
+          params: {
+            page: 1,
+            size: 20,
+            keyword: query || ''
+          }
+        })
+        if (response.data.code === 200) {
+          this.cities = response.data.data.records
+        }
+      } catch (error) {
+        console.error('搜索城市失败:', error)
+      } finally {
+        this.cityLoading = false
+      }
+    },
+    // 处理城市选择变化
+    handleCityChange(selectedCodes) {
+      // 将当前搜索到的城市信息保存到 selectedCitiesMap
+      this.cities.forEach(city => {
+        if (selectedCodes.includes(city.cityCode)) {
+          this.$set(this.selectedCitiesMap, city.cityCode, city)
+        }
+      })
+      // 清空搜索文本
+      this.$nextTick(() => {
+        if (this.$refs.citySelect) {
+          this.$refs.citySelect.query = ''
+          this.$refs.citySelect.previousQuery = ''
+        }
+      })
+    },
     async handleQuery() {
       if (this.queryForm.cityCodes.length < 2) {
         this.$message.warning('请至少选择2个城市进行对比')
         return
       }
-      if (!this.queryForm.dateRange || this.queryForm.dateRange.length !== 2) {
-        this.$message.warning('请选择时间范围')
+      if (!this.queryForm.startDate || !this.queryForm.endDate) {
+        this.$message.warning('请选择开始日期和结束日期')
         return
       }
 
       this.hasQueried = true
-      this.selectedCities = this.cities.filter(c => this.queryForm.cityCodes.includes(c.cityCode))
+      // 从 selectedCitiesMap 获取已选择的城市信息
+      this.selectedCities = this.queryForm.cityCodes.map(code => {
+        return this.selectedCitiesMap[code] || { cityCode: code, cityName: code }
+      })
 
       try {
         const response = await this.$axios.post('/air-quality/compare', {
           cityCodes: this.queryForm.cityCodes,
-          startDate: this.queryForm.dateRange[0],
-          endDate: this.queryForm.dateRange[1]
+          startDate: this.queryForm.startDate,
+          endDate: this.queryForm.endDate
         })
 
         if (response.data.code === 200) {
           this.processData(response.data.data)
+          // 设置缺失数据计数
+          this.missingDataCount = response.data.data.missingDataCount || 0
           this.$nextTick(() => {
             this.renderChart()
           })
@@ -202,12 +330,15 @@ export default {
     },
     handleReset() {
       this.queryForm.cityCodes = []
-      this.queryForm.dateRange = []
+      this.queryForm.startDate = ''
+      this.queryForm.endDate = ''
+      this.selectedCitiesMap = {}
       this.chartData = []
       this.tableData = []
       this.statistics = []
       this.selectedCities = []
       this.hasQueried = false
+      this.missingDataCount = 0
     },
     processData(data) {
       const dates = data.dates
@@ -225,7 +356,8 @@ export default {
 
       this.statistics = this.queryForm.cityCodes.map(cityCode => {
         const values = cityData[cityCode]
-        const city = this.cities.find(c => c.cityCode === cityCode)
+        // 从 selectedCitiesMap 获取城市名称
+        const city = this.selectedCitiesMap[cityCode]
         const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length)
         const max = Math.max(...values)
         const min = Math.min(...values)
@@ -241,8 +373,8 @@ export default {
       })
     },
     processMockData() {
-      const startDate = new Date(this.queryForm.dateRange[0])
-      const endDate = new Date(this.queryForm.dateRange[1])
+      const startDate = new Date(this.queryForm.startDate)
+      const endDate = new Date(this.queryForm.endDate)
       const dates = []
       
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
@@ -261,7 +393,8 @@ export default {
       this.tableData = this.chartData
 
       this.statistics = this.queryForm.cityCodes.map((cityCode, index) => {
-        const city = this.cities.find(c => c.cityCode === cityCode)
+        // 从 selectedCitiesMap 获取城市名称
+        const city = this.selectedCitiesMap[cityCode]
         const values = this.chartData.map(row => row[cityCode])
         const avg = Math.round(values.reduce((a, b) => a + b, 0) / values.length)
         const max = Math.max(...values)
@@ -286,7 +419,8 @@ export default {
       const colors = ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C', '#909399', '#C45656']
       
       const series = this.queryForm.cityCodes.map((cityCode, index) => {
-        const city = this.cities.find(c => c.cityCode === cityCode)
+        // 从 selectedCitiesMap 获取城市名称
+        const city = this.selectedCitiesMap[cityCode]
         return {
           name: city ? city.cityName : cityCode,
           type: 'line',
@@ -410,6 +544,34 @@ export default {
 h3 {
   margin-bottom: 15px;
   color: #303133;
+  font-size: 16px;
+}
+
+.data-note {
+  text-align: center;
+  padding: 15px;
+  margin-top: 20px;
+  color: #909399;
+  font-size: 12px;
+}
+
+.data-note i {
+  margin-right: 5px;
+}
+
+.warning-tip {
+  background-color: #fdf6ec;
+  border: 1px solid #f5dab1;
+  color: #e6a23c;
+  padding: 12px 20px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.warning-tip i {
+  margin-right: 8px;
   font-size: 16px;
 }
 </style>

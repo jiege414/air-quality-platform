@@ -118,25 +118,42 @@ public class AirQualityServiceImpl extends ServiceImpl<AirQualityMapper, AirQual
     public Map<String, Object> compareCities(List<String> cityCodes, LocalDate startDate, LocalDate endDate) {
         Map<String, Object> result = new HashMap<>();
         List<String> dates = new ArrayList<>();
-        Map<String, List<Integer>> cityAqiMap = new HashMap<>();
+        Map<String, List<Map<String, Object>>> cityDataMap = new HashMap<>();
+        int totalMissingDays = 0;
+        
+        // 生成日期范围内的所有日期
+        long daysBetween = ChronoUnit.DAYS.between(startDate, endDate);
+        for (int i = 0; i <= daysBetween; i++) {
+            dates.add(startDate.plusDays(i).toString());
+        }
         
         for (String cityCode : cityCodes) {
-            List<AirQuality> data = getHistoryData(cityCode, startDate, endDate);
-            List<Integer> aqiList = new ArrayList<>();
+            // 使用带缺失数据标记的方法获取数据
+            List<Map<String, Object>> cityDataList = getHistoryDataWithMissingDates(cityCode, startDate, endDate);
+            cityDataMap.put(cityCode, cityDataList);
             
-            for (AirQuality aq : data) {
-                String dateStr = aq.getDate().toString();
-                if (!dates.contains(dateStr)) {
-                    dates.add(dateStr);
+            // 统计缺失数据天数
+            for (Map<String, Object> dayData : cityDataList) {
+                if (!(Boolean) dayData.get("hasData")) {
+                    totalMissingDays++;
                 }
-                aqiList.add(aq.getAqi());
             }
-            
+        }
+        
+        // 转换为前端需要的格式
+        Map<String, List<Integer>> cityAqiMap = new HashMap<>();
+        for (String cityCode : cityCodes) {
+            List<Map<String, Object>> cityDataList = cityDataMap.get(cityCode);
+            List<Integer> aqiList = cityDataList.stream()
+                .map(dayData -> dayData.get("aqi") != null ? (Integer) dayData.get("aqi") : 0)
+                .collect(Collectors.toList());
             cityAqiMap.put(cityCode, aqiList);
         }
         
         result.put("dates", dates);
         result.put("cityData", cityAqiMap);
+        result.put("missingDataCount", totalMissingDays);
+        result.put("cityDataDetails", cityDataMap);
         
         return result;
     }

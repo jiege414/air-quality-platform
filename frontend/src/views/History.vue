@@ -201,6 +201,13 @@ export default {
             return true
           }
           
+          // 不能晚于今天
+          const today = new Date()
+          today.setHours(0, 0, 0, 0)
+          if (time.getTime() > today.getTime()) {
+            return true
+          }
+          
           // 不能早于开始日期
           if (this.queryForm.startDate) {
             const startDate = new Date(this.queryForm.startDate)
