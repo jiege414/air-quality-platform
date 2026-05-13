@@ -12,7 +12,10 @@
     <div class="card-container" style="margin-top: 20px;">
       <div class="section-header">
         <h3>未处理预警</h3>
-        <el-button type="primary" size="small" @click="refreshWarnings" icon="el-icon-refresh">刷新</el-button>
+        <div class="header-buttons">
+          <el-button type="success" size="small" @click="showBatchDialog" icon="el-icon-check">批量处理</el-button>
+          <el-button type="primary" size="small" @click="refreshWarnings" icon="el-icon-refresh">刷新</el-button>
+        </div>
       </div>
       
       <el-table :data="warningList" stripe style="width: 100%" v-loading="loading">
@@ -120,6 +123,26 @@
         </el-col>
       </el-row>
     </div>
+
+    <el-dialog title="批量处理预警" :visible.sync="batchDialogVisible" width="500px">
+      <el-form :model="batchForm" label-width="100px">
+        <el-form-item label="时间范围">
+          <el-date-picker
+            v-model="batchForm.dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="yyyy-MM-dd"
+            style="width: 100%;"
+          ></el-date-picker>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="batchDialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="batchHandleWarnings" :loading="batchProcessing">确 定</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -135,7 +158,12 @@ export default {
         cityCode: ''
       },
       predicting: false,
-      predictionResult: null
+      predictionResult: null,
+      batchDialogVisible: false,
+      batchForm: {
+        dateRange: []
+      },
+      batchProcessing: false
     }
   },
   mounted() {
@@ -283,6 +311,40 @@ export default {
         '严重': 'danger'
       }
       return typeMap[level] || ''
+    },
+    showBatchDialog() {
+      if (this.warningList.length === 0) {
+        this.$message.warning('暂无未处理预警')
+        return
+      }
+      this.batchForm.dateRange = []
+      this.batchDialogVisible = true
+    },
+    async batchHandleWarnings() {
+      if (!this.batchForm.dateRange || this.batchForm.dateRange.length !== 2) {
+        this.$message.warning('请选择时间范围')
+        return
+      }
+
+      this.batchProcessing = true
+      try {
+        const response = await this.$axios.post('/warning/batch-handle', {
+          startDate: this.batchForm.dateRange[0],
+          endDate: this.batchForm.dateRange[1]
+        })
+
+        if (response.data.code === 200) {
+          const count = response.data.data
+          this.$message.success(`成功处理 ${count} 条预警`)
+          this.batchDialogVisible = false
+          this.fetchWarnings()
+        }
+      } catch (error) {
+        console.error('批量处理预警失败:', error)
+        this.$message.error('批量处理失败，请稍后重试')
+      } finally {
+        this.batchProcessing = false
+      }
     }
   }
 }
@@ -319,6 +381,11 @@ export default {
   margin: 0;
   font-size: 16px;
   color: #303133;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 10px;
 }
 
 .empty-warning {

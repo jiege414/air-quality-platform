@@ -13,4 +13,8 @@ public interface WarningService extends IService<WarningRecord> {
     Map<String, Object> predictAndGenerateWarning(String cityCode);
     
     boolean handleWarning(Long warningId);
+    
+    int batchHandleWarnings(String startDate, String endDate);
+    
+    int getTodayWarningCount();
 }

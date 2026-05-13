@@ -8,7 +8,9 @@ import com.cugb.service.AirQualityService;
 import com.cugb.service.WarningService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -23,6 +25,11 @@ public class WarningServiceImpl extends ServiceImpl<WarningRecordMapper, Warning
     
     @Value("${warning.threshold:150}")
     private Integer warningThreshold;
+    
+    @Value("${prediction.api.url:http://localhost:5000}")
+    private String predictionApiUrl;
+    
+    private final RestTemplate restTemplate = new RestTemplate();
     
     @Override
     public List<WarningRecord> getUnhandledWarnings() {
@@ -44,7 +51,13 @@ public class WarningServiceImpl extends ServiceImpl<WarningRecordMapper, Warning
             return result;
         }
         
-        int predictedAqi = linearRegressionPredict(historyData);
+        int predictedAqi = predictWithArima(cityCode);
+        
+        if (predictedAqi == -1) {
+            result.put("success", false);
+            result.put("message", "ARIMA预测失败，请稍后重试");
+            return result;
+        }
         
         String warningLevel;
         String warningMessage;
@@ -89,25 +102,37 @@ public class WarningServiceImpl extends ServiceImpl<WarningRecordMapper, Warning
         return result;
     }
     
-    private int linearRegressionPredict(List<AirQuality> historyData) {
-        int n = Math.min(historyData.size(), 14);
-        double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-        
-        for (int i = 0; i < n; i++) {
-            double x = i;
-            double y = historyData.get(historyData.size() - n + i).getAqi();
-            sumX += x;
-            sumY += y;
-            sumXY += x * y;
-            sumX2 += x * x;
+    private int predictWithArima(String cityCode) {
+        try {
+            String url = predictionApiUrl + "/predict";
+            
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("cityCode", cityCode);
+            requestBody.put("days", 1);
+            
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+            
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, entity, Map.class);
+            
+            if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+                Map<String, Object> responseBody = response.getBody();
+                Boolean success = (Boolean) responseBody.get("success");
+                
+                if (success != null && success) {
+                    List<Number> predictions = (List<Number>) responseBody.get("predictions");
+                    if (predictions != null && !predictions.isEmpty()) {
+                        return predictions.get(0).intValue();
+                    }
+                }
+            }
+            
+            return -1;
+            
+        } catch (Exception e) {
+            return -1;
         }
-        
-        double slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-        double intercept = (sumY - slope * sumX) / n;
-        
-        double prediction = slope * n + intercept;
-        
-        return (int) Math.round(prediction);
     }
     
     @Override
@@ -118,5 +143,15 @@ public class WarningServiceImpl extends ServiceImpl<WarningRecordMapper, Warning
             return this.updateById(record);
         }
         return false;
+    }
+    
+    @Override
+    public int batchHandleWarnings(String startDate, String endDate) {
+        return baseMapper.batchHandleByDateRange(startDate, endDate);
+    }
+    
+    @Override
+    public int getTodayWarningCount() {
+        return baseMapper.countTodayWarnings();
     }
 }

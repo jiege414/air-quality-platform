@@ -35,4 +35,18 @@ public class WarningController {
         boolean success = warningService.handleWarning(warningId);
         return Result.success(success);
     }
+    
+    @PostMapping("/batch-handle")
+    public Result<Integer> batchHandleWarnings(@RequestBody Map<String, String> params) {
+        String startDate = params.get("startDate");
+        String endDate = params.get("endDate");
+        int count = warningService.batchHandleWarnings(startDate, endDate);
+        return Result.success(count);
+    }
+    
+    @GetMapping("/today-count")
+    public Result<Integer> getTodayWarningCount() {
+        int count = warningService.getTodayWarningCount();
+        return Result.success(count);
+    }
 }

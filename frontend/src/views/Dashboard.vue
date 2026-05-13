@@ -235,6 +235,18 @@ export default {
     },
     async fetchData() {
       await this.fetchRealtimeData()
+      await this.fetchTodayWarningCount()
+    },
+    async fetchTodayWarningCount() {
+      try {
+        const response = await this.$axios.get('/warning/today-count')
+        if (response.data.code === 200) {
+          this.statistics.warningCount = response.data.data
+        }
+      } catch (error) {
+        console.error('获取今日预警数失败:', error)
+        this.statistics.warningCount = 0
+      }
     },
     async fetchWorstRanking() {
       try {
